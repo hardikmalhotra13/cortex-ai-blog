@@ -5,7 +5,8 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient(); // ✅ FIXED
+
   const { data, error } = await supabase
     .from('comments')
     .select('*, profiles(email, role)')
@@ -20,7 +21,8 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient(); // ✅ FIXED
+
   const body = await request.json();
   
   const { data, error } = await supabase
