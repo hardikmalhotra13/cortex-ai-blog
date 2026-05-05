@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input } from '@/components/ui';
 import { postsService } from '@/services/posts.service';
@@ -24,14 +24,27 @@ export const PostForm = ({ initialData, userId }: PostFormProps) => {
     summary: initialData?.summary || '',
   });
 
+  // Auto-generate summary when content changes (debounced)
+  useEffect(() => {
+    if (!formData.body || formData.body.length < 50 || generating) return;
+
+    const timer = setTimeout(() => {
+      handleGenerateSummary();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [formData.body]);
+
   const handleGenerateSummary = async () => {
-    if (!formData.body) return alert('Please enter some content first.');
+    if (!formData.body) return;
     setGenerating(true);
+    console.log("[Form] Requesting AI summary...");
     try {
       const summary = await generateSummary(formData.body);
-      setFormData({ ...formData, summary });
+      console.log("[Form] AI summary received successfully");
+      setFormData(prev => ({ ...prev, summary }));
     } catch (error) {
-      alert('Failed to generate summary.');
+      console.error("[Form] AI summary generation failed:", error);
     } finally {
       setGenerating(false);
     }
@@ -119,10 +132,10 @@ export const PostForm = ({ initialData, userId }: PostFormProps) => {
           </div>
           
           <textarea
-            className="w-full min-h-[120px] p-5 rounded-2xl bg-white/5 border border-white/5 text-slate-300 text-sm focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all resize-none italic leading-relaxed"
+            className="relative z-10 w-full min-h-[200px] p-5 rounded-2xl bg-white/5 border border-white/5 text-slate-300 text-sm focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all resize-none italic leading-relaxed pointer-events-auto"
             placeholder="The AI summary will be crafted here to engage your readers instantly..."
             value={formData.summary}
-            onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, summary: e.target.value }))}
           />
         </div>
       </div>

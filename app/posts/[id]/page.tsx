@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getSupabase } from '@/lib/supabase';
 import { postsService } from '@/services/posts.service';
 import { CommentSection } from '@/components/blog/CommentSection';
 import { Calendar, User, ArrowLeft, Edit, Sparkles } from 'lucide-react';
@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const { data: post } = await postsService.getPostById(params.id);
+  const post = await postsService.getPostById(params.id);
   return {
     title: post ? `${post.title} | Cortex` : 'Post Not Found',
     description: post?.summary || post?.body.substring(0, 160),
@@ -16,15 +16,18 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 export default async function PostPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: post } = await postsService.getPostById(params.id);
+  const supabase = await getSupabase();
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+  const post = await postsService.getPostById(params.id);
 
   if (!post) {
     notFound();
   }
 
-  const isAuthor = user?.id === post.author_id;
+  const { data: profile } = user ? await supabase!.from('profiles').select('role').eq('id', user.id).single() : { data: null };
+  const { canEditPost } = await import('@/lib/permissions');
+  const userWithRole = user ? { ...user, role: profile?.role } : null;
+  const showEdit = canEditPost(userWithRole as any, post as any);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -38,11 +41,11 @@ export default async function PostPage({ params }: { params: { id: string } }) {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Feed
             </Link>
-            {isAuthor && (
+            {showEdit && (
               <Link href={`/posts/edit/${post.id}`}>
                 <Button variant="outline" size="sm" className="glow-border">
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit Post
+                  Edit Story
                 </Button>
               </Link>
             )}
@@ -55,7 +58,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
           <div className="flex items-center justify-center space-x-6 text-slate-400">
             <span className="flex items-center">
               <User className="w-5 h-5 mr-2 text-indigo-400" />
-              {post.profiles?.name || post.profiles?.email?.split('@')[0]}
+              {post.author?.name || post.author?.email?.split('@')[0]}
             </span>
             <span className="text-slate-700">|</span>
             <span className="flex items-center">

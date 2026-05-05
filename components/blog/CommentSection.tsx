@@ -17,6 +17,11 @@ export const CommentSection = ({ postId, userId: initialUserId }: CommentSection
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(initialUserId);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // In mock mode, check localStorage if initialUserId is null
@@ -110,17 +115,17 @@ export const CommentSection = ({ postId, userId: initialUserId }: CommentSection
           <div key={comment.id} className="flex space-x-6 group animate-in slide-in-from-left-4 duration-500">
             <div className="flex-shrink-0">
               <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-white/5 flex items-center justify-center text-slate-400 font-bold group-hover:border-indigo-500/30 transition-colors">
-                {comment.profiles?.name?.[0] || comment.profiles?.email?.[0].toUpperCase() || '?'}
+                {comment.author?.name?.[0] || comment.author?.email?.[0].toUpperCase() || '?'}
               </div>
             </div>
             <div className="flex-grow space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-base font-bold text-white tracking-tight">
-                    {comment.profiles?.name || comment.profiles?.email?.split('@')[0]}
+                    {comment.author?.name || comment.author?.email?.split('@')[0]}
                   </span>
                   <span className="text-xs text-slate-500 ml-3 font-medium">
-                    {new Date(comment.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                    {mounted ? new Date(comment.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '...'}
                   </span>
                 </div>
                 {currentUserId === comment.user_id && (

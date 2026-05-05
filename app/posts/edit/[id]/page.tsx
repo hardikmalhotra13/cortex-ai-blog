@@ -1,43 +1,26 @@
 import { redirect, notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { PostForm } from '@/components/blog/PostForm';
 import { postsService } from '@/services/posts.service';
+import { authService } from '@/services/auth.service';
 
 export default async function EditPostPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  let user: any = null;
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    user = { id: 'mock_user', email: 'demo@cortex.ai' };
-  } else {
-    const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-    user = supabaseUser;
-  }
+  const user = await authService.getUser();
 
   if (!user) {
     redirect('/auth/login');
   }
 
-  const { data: post } = await postsService.getPostById(params.id);
+  const post = await postsService.getPostById(params.id);
 
   if (!post) {
     notFound();
   }
 
   // Security: only author or admin can edit
-  let profile: any = null;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    profile = { role: 'author' };
-  } else {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    profile = data;
-  }
+  const { data: profile } = await authService.getProfile(user.id);
+  const { canEditPost } = await import('@/lib/permissions');
 
-  if (post.author_id !== user.id && profile?.role !== 'admin') {
+  if (!canEditPost({ ...user, role: profile?.role } as any, post)) {
     redirect('/dashboard');
   }
 

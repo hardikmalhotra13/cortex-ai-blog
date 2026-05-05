@@ -1,59 +1,23 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui';
 import { LogOut, User, LayoutDashboard, PlusSquare, Shield, Sparkles } from 'lucide-react';
 import { authService } from '@/services/auth.service';
+import { useUser } from '@/hooks/useUser';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const user = await authService.getUser();
-      setUser(user);
-      if (user) {
-        const { data } = await authService.getProfile(user.id);
-        setProfile(data);
-      } else {
-        setProfile(null);
-      }
-    };
-    checkUser();
-
-    const interval = setInterval(checkUser, 2000);
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        const { data } = await authService.getProfile(session.user.id);
-        setProfile(data);
-      } else if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        // Mock mode handled by interval
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(interval);
-    };
-  }, [supabase]);
+  const { user, loading } = useUser();
+  const { canCreatePost, isAdmin } = usePermissions(user);
 
   const handleSignOut = async () => {
     await authService.signOut();
-    setUser(null);
-    setProfile(null);
     router.push('/');
     router.refresh();
   };
@@ -82,7 +46,7 @@ export const Navbar = () => {
               >
                 Feed
               </Link>
-              {profile?.role === 'admin' && (
+              {isAdmin && (
                 <Link
                   href="/admin"
                   className={cn(
@@ -98,7 +62,7 @@ export const Navbar = () => {
           </div>
 
           <div className="flex items-center space-x-6">
-            {user ? (
+            {!loading && user ? (
               <>
                 <Link href="/dashboard" className="hidden sm:flex items-center space-x-2">
                   <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-white/5">
@@ -106,7 +70,7 @@ export const Navbar = () => {
                     Dashboard
                   </Button>
                 </Link>
-                {(profile?.role === 'author' || profile?.role === 'admin') && (
+                {canCreatePost && (
                   <Link href="/posts/create" className="hidden sm:block">
                     <Button size="sm" className="glow-border">
                       <PlusSquare className="w-4 h-4 mr-2" />
@@ -116,21 +80,12 @@ export const Navbar = () => {
                 )}
                 <div className="h-6 w-px bg-white/10 hidden sm:block" />
                 
-                {!process.env.NEXT_PUBLIC_SUPABASE_URL && (
-                  <Link href="/">
-                    <Button variant="ghost" size="sm" className="text-indigo-400 hover:bg-indigo-500/10">
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Switch Mode
-                    </Button>
-                  </Link>
-                )}
-
                 <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-400 hover:text-red-400">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </Button>
               </>
-            ) : (
+            ) : !loading && (
               <>
                 <Link href="/auth/login">
                   <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-white/5">Log In</Button>

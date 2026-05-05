@@ -21,19 +21,24 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
 
-    const { error } = await authService.signUp(formData.email, formData.password);
+    try {
+      const { error } = await authService.signUp(formData.email, formData.password);
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        router.push('/');
-        router.refresh();
-      } else {
-        setSuccess(true);
+      if (error) {
+        setError(error.message);
         setLoading(false);
+      } else {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          // Use location.href to ensure server components see the cookie immediately
+          window.location.href = '/dashboard';
+        } else {
+          setSuccess(true);
+          setLoading(false);
+        }
       }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+      setLoading(false);
     }
   };
 
@@ -96,7 +101,7 @@ export default function SignupPage() {
             required
           />
 
-          <Button type="submit" className="w-full" isLoading={loading}>
+          <Button type="submit" className="w-full h-14 rounded-2xl" isLoading={loading}>
             Sign Up
           </Button>
         </form>

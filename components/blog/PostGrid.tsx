@@ -9,8 +9,8 @@ interface PostGridProps {
 export const PostGrid = ({ posts }: PostGridProps) => {
   if (posts.length === 0) {
     return (
-      <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-        <p className="text-gray-500 font-medium">No posts found.</p>
+      <div className="text-center py-20 glass rounded-[2rem] border border-white/5">
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No entries found in the Cortex</p>
       </div>
     );
   }

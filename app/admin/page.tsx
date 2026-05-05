@@ -5,33 +5,16 @@ import { Button } from '@/components/ui';
 import { Shield, Trash2, Edit, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
+import { authService } from '@/services/auth.service';
+
 export default async function AdminPage() {
-  const supabase = createClient();
-  let user: any = null;
-  let role: string = 'viewer';
+  const user = await authService.getUser();
+  const { data: profile } = await authService.getProfile(user?.id || '');
+  const role = profile?.role || 'viewer';
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    // In mock mode, we'll assume the user is authorized if they reached here 
-    // but we can't easily check localStorage on server.
-    // However, the Navbar only shows this link if role is admin.
-    // For the sake of the demo, we'll allow it if in mock mode.
-    user = { id: 'mock_admin', email: 'admin@cortex.ai' };
-    role = 'admin';
-  } else {
-    const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-    user = supabaseUser;
-    
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      role = data?.role || 'viewer';
-    }
-  }
-
-  if (!user || role !== 'admin') {
+  const { isAdmin } = await import('@/lib/permissions');
+  
+  if (!user || !isAdmin({ role } as any)) {
     redirect('/');
   }
 

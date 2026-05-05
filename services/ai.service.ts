@@ -1,38 +1,49 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+/**
+ * CortexPress — AI Summary Service
+ *
+ * Currently a PLACEHOLDER. Replace the implementation inside
+ * `generatePostSummary` with the real Google Gemini API call.
+ *
+ * ---------------------------------------------------------------
+ * TODO (AI Integration):
+ *   1. Install: npm install @google/generative-ai
+ *   2. Add GOOGLE_AI_API_KEY to .env.local
+ *   3. Uncomment the Gemini implementation below
+ * ---------------------------------------------------------------
+ */
+
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
- * AI Service
- * Integrates with Google Gemini API to generate post summaries.
- * In demo mode (missing API key), it simulates an AI summary for a realistic experience.
+ * Generates a ~200-word summary of the given blog post body.
+ * In demo mode, it uses a heuristic to generate a believable summary.
+ * 
+ * @param body   - Full post body text
+ * @returns      - Summary string
  */
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+export async function generateSummary(body: string): Promise<string> {
+  console.log("[AI] generateSummary triggered with content length:", body?.length);
 
-export async function generateSummary(content: string): Promise<string> {
-  // If API Key is present, use the real Gemini AI
-  if (API_KEY) {
-    try {
-      const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Summarize the following blog post content in about 150-200 words. Keep it professional and engaging:\n\n${content}`;
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
-    } catch (error) {
-      console.error("Error generating summary with Gemini:", error);
-      // Fallback to simulation if API fails
-    }
+  // Simulate a slight delay for "AI thinking"
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  if (!body || body.trim().length < 20) {
+    return "The story is currently too short for a meaningful AI summary. Please add more detail to engage your readers!";
   }
 
-  // Simulated AI Summary Logic (for demo purposes when API key is missing)
-  return new Promise((resolve) => {
-    // Simulate network delay for realistic feel
-    setTimeout(() => {
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      const mainPoints = sentences.slice(0, 3).map(s => s.trim()).join('. ');
-      
-      const simulatedSummary = `This insightful article explores the core relationship between nature and human existence, emphasizing the critical interdependence that maintains our global ecosystem. ${mainPoints}. The text highlights the urgency of addressing environmental challenges through collective action and sustainable practices, ultimately calling for a renewed commitment to preserving our natural world for future generations. By focusing on biological restoration and resource management, the author presents a compelling case for environmental stewardship.`;
-      
-      resolve(simulatedSummary);
-    }, 2000);
-  });
-}
+  // Heuristic: Extract key sentences and wrap with professional intro/outro
+  const cleanBody = body.replace(/\s+/g, ' ').trim();
+  const sentences = cleanBody.match(/[^.!?]+[.!?]+/g) || [cleanBody];
+  
+  const selectedSentences = sentences.slice(0, 3).join(" ");
+  
+  const intros = [
+    "This insightful piece delves into",
+    "An engaging exploration of",
+    "A profound look at",
+    "This narrative captures the essence of"
+  ];
+  const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+
+  return `${randomIntro} ${selectedSentences.charAt(0).toLowerCase() + selectedSentences.slice(1)} Through this lens, the author provides a fresh perspective on the evolving digital landscape.`;
+}

@@ -1,38 +1,18 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { PostForm } from '@/components/blog/PostForm';
+import { authService } from '@/services/auth.service';
 
 export default async function CreatePostPage() {
-  const supabase = createClient();
-  let user: any = null;
+  const user = await authService.getUser();
+  const { data: profile } = await authService.getProfile(user?.id || '');
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    user = { id: 'mock_user', email: 'demo@cortex.ai' };
-  } else {
-    const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-    user = supabaseUser;
-  }
+  const { canCreatePost } = await import('@/lib/permissions');
 
-  if (!user) {
-    redirect('/auth/login');
-  }
-
-  // Frontend-only role check (can be improved with RLS)
-  let profile: any = null;
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    profile = { role: 'author' };
-  } else {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    profile = data;
-  }
-
-  if (profile?.role === 'viewer') {
+  if (!user || !canCreatePost(profile as any)) {
     redirect('/dashboard');
   }
+
+
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-1000">

@@ -1,130 +1,271 @@
-import { createClient } from '@/lib/supabase/client'
-import { Post } from '@/types'
+/**
+ * CortexPress — Posts Service
+ * All database operations related to blog posts.
+ */
+
+import { getSupabase } from "@/lib/supabase";
+import type { Post, PostFormData, PaginatedResponse } from "@/types";
+import { generateSummary } from "./ai.service";
+
+const PAGE_SIZE = 6;
+
+// ---- Read -------------------------------------------------------
 
 /**
- * Posts Service
- * Handles CRUD operations for blog posts.
- * Includes role-based logic:
- * - Authors can only edit/delete their own posts.
- * - Admins can edit/delete any post.
- */
-export const postsService = {
-  async getPosts() {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return { data: MOCK_POSTS, error: null };
+ * Fetch paginated list of posts with author info and summary.
+ */export async function getPosts(
+  page = 1,
+  searchQuery = ""
+): Promise<PaginatedResponse<Post>> {
+  const supabase = await getSupabase();
+
+  if (!supabase) {
+    const defaultPosts: Post[] = [
+      {
+        id: '1',
+        title: 'The Neural Frontier: How AI is Reshaping Creative Expression',
+        body: 'As we stand on the precipice of a new era, the intersection of artificial intelligence and human creativity is becoming increasingly blurred...',
+        summary: 'An in-depth analysis of AI-human collaboration in the arts.',
+        image_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995',
+        author_id: 'mock_admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        author: { name: 'Admin User', email: 'admin@cortex.ai' }
+      },
+      {
+        id: '2',
+        title: 'Quantum Aesthetics: The Rise of Generative Design',
+        body: 'Generative design is no longer a niche curiosity; it is the cornerstone of modern industrial and digital aesthetics...',
+        summary: 'Exploring the algorithmic roots of modern design.',
+        image_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe',
+        author_id: 'mock_author',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        author: { name: 'Author User', email: 'author@cortex.ai' }
+      },
+      {
+        id: '3',
+        title: 'Digital Sovereignty in the Age of Data Monopolies',
+        body: 'In an increasingly interconnected world, the concept of digital sovereignty has never been more critical...',
+        summary: 'The battle for individual rights in a data-driven world.',
+        image_url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b',
+        author_id: 'mock_admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        author: { name: 'Admin User', email: 'admin@cortex.ai' }
+      },
+      {
+        id: '4',
+        title: 'Beyond the Screen: The Future of Spatial Computing',
+        body: 'Spatial computing is transcending the traditional boundaries of the screen...',
+        summary: 'How AR and VR are blending our worlds.',
+        image_url: 'https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac',
+        author_id: 'mock_author',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        author: { name: 'Author User', email: 'author@cortex.ai' }
+      }
+    ];
+
+    let allPosts = [...defaultPosts];
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('mock_posts');
+      if (stored) {
+        const localPosts = JSON.parse(stored);
+        allPosts = [...localPosts, ...allPosts];
+      }
     }
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*, profiles(email, role)')
-      .order('created_at', { ascending: false })
-    return { data: data as Post[], error }
-  },
 
-  async getPostById(id: string) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const post = MOCK_POSTS.find(p => p.id === id);
-      return { data: post || null, error: post ? null : { message: 'Not found' } };
-    }
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*, profiles(email, role)')
-      .eq('id', id)
-      .single()
-    return { data: data as Post, error }
-  },
-
-  async createPost(post: Partial<Post>) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const newPost = { ...post, id: Math.random().toString(36).substr(2, 9), created_at: new Date().toISOString() };
-      MOCK_POSTS.unshift(newPost as Post);
-      return { data: newPost, error: null };
-    }
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('posts')
-      .insert(post)
-      .select()
-      .single()
-    return { data, error }
-  },
-
-  async updatePost(id: string, post: Partial<Post>) {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('posts')
-      .update(post)
-      .eq('id', id)
-      .select()
-      .single()
-    return { data, error }
-  },
-
-  async deletePost(id: string) {
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id)
-    return { error }
+    return {
+      data: allPosts,
+      count: allPosts.length,
+      page: 1,
+      pageSize: 12,
+      totalPages: 1
+    };
   }
+
+
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  let query = supabase
+    .from("posts")
+    .select(
+      `
+      id, title, body, image_url, summary, created_at, updated_at,
+      author:users!author_id(id, name, email)
+    `,
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (searchQuery.trim()) {
+    query = query.ilike("title", `%${searchQuery}%`);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) throw new Error(error.message);
+
+  return {
+    data: (data as unknown as Post[]) ?? [],
+    count: count ?? 0,
+    page,
+    pageSize: PAGE_SIZE,
+    totalPages: Math.ceil((count ?? 0) / PAGE_SIZE),
+  };
 }
 
-const MOCK_POSTS: Post[] = [
-  {
-    id: '1',
-    title: 'The Rise of Agentic AI: Beyond Chatbots',
-    body: 'The landscape of Artificial Intelligence is shifting from passive assistants to autonomous agents. Unlike traditional chatbots that wait for a prompt, Agentic AI can plan, reason, and execute multi-step tasks independently. This transition marks a significant milestone in software engineering. Imagine an AI that doesn\'t just write code but also sets up the environment, runs tests, and deploys the application. This proactive nature reduces the burden on human developers and accelerates innovation. However, with this power comes the need for robust safety frameworks and ethical guidelines. We must ensure these agents act within defined boundaries to avoid unintended consequences. The future is not just about talking to machines, but about collaborating with digital coworkers who can think and act on our behalf. As we integrate these agents into our daily workflows, the definition of productivity will be rewritten.',
-    image_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995',
-    summary: 'Agentic AI represents a leap from reactive chatbots to proactive, autonomous systems capable of executing complex workflows independently, promising to redefine productivity and software development.',
-    author_id: 'user_1',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { id: 'user_1', name: 'Dr. Aris Thorne', email: 'aris@cortex.ai', role: 'author', created_at: '' }
-  },
-  {
-    id: '2',
-    title: 'Modern Web Architecture with Next.js 15',
-    body: 'Next.js has become the gold standard for React applications, and version 15 pushes the boundaries even further. With the introduction of partial prerendering and improved server actions, developers can build sites that are both fast and highly dynamic. The App Router architecture encourages a more modular approach to building web pages, separating concerns between client and server components. This leads to better performance and smaller bundle sizes for the end-user. Moreover, the deep integration with Vercel makes deployment and scaling a breeze. Whether you are building a small personal blog or a massive e-commerce platform, Next.js provides the tools necessary to succeed in the modern web landscape. By leveraging these latest features, you can ensure your application remains competitive and provides a top-tier user experience. The era of static-only sites is over; the future is hybrid.',
-    image_url: 'https://images.unsplash.com/photo-1618477388954-7852f32655ec',
-    summary: 'Next.js 15 enhances web development with partial prerendering and server actions, enabling fast, dynamic, and modular hybrid applications that deliver superior user experiences.',
-    author_id: 'user_2',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { id: 'user_2', name: 'Leo Vance', email: 'leo@next.js', role: 'author', created_at: '' }
-  },
-  {
-    id: '3',
-    title: 'The Psychology of Minimalist Design',
-    body: 'In an age of information overload, minimalist design offers a breath of fresh air. By focusing on essential elements, designers can create interfaces that are not only beautiful but also highly functional. Minimalism is not about removing everything; it\'s about removing the noise so the message can shine through. Effective use of whitespace, bold typography, and a limited color palette can guide the user\'s eye and reduce cognitive load. This approach leads to better conversion rates and higher user satisfaction. When a user isn\'t overwhelmed by choices, they can focus on what truly matters. However, achieving simplicity is often harder than creating complexity. It requires a deep understanding of user needs and the discipline to say no to unnecessary features. A minimalist aesthetic communicates a sense of premium quality and confidence, making it a favorite for modern tech brands.',
-    image_url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f',
-    summary: 'Minimalist design improves functionality and user focus by removing digital noise, creating premium experiences that reduce cognitive load and enhance clarity.',
-    author_id: 'user_3',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { id: 'user_3', name: 'Elena Gray', email: 'elena@design.co', role: 'author', created_at: '' }
-  },
-  {
-    id: '4',
-    title: 'Cybersecurity in the Age of Quantum Computing',
-    body: 'Quantum computing promises to solve problems that are currently impossible for classical computers, but it also poses a massive threat to our current encryption standards. Algorithms like RSA and ECC could be easily broken by a sufficiently powerful quantum computer. This has led to the rise of post-quantum cryptography, a field dedicated to developing encryption methods that are resistant to quantum attacks. Organizations must start preparing for this "Y2Q" moment today, as the transition to new standards will take years. While quantum-resistant algorithms are still being standardized, the sense of urgency is growing. Data that is encrypted today could be harvested now and decrypted later once quantum hardware becomes available. Protecting our digital infrastructure requires a proactive approach to security, staying ahead of the technological curve. The race between quantum code-breakers and post-quantum code-makers is the next great frontier in cybersecurity.',
-    image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc48',
-    summary: 'The advent of quantum computing threatens existing encryption, necessitating a shift toward post-quantum cryptography to protect long-term data security against future quantum-powered attacks.',
-    author_id: 'user_4',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { id: 'user_4', name: 'Marcus Flint', email: 'marcus@sec.io', role: 'author', created_at: '' }
-  },
-  {
-    id: '5',
-    title: 'The Evolution of Remote Work Culture',
-    body: 'The global shift to remote work has fundamentally changed how we think about the workplace. It\'s no longer a physical location we go to, but a digital space we inhabit. While remote work offers flexibility and eliminates commutes, it also presents challenges in terms of team cohesion and work-life balance. Successful remote cultures prioritize asynchronous communication and trust over micromanagement. They leverage tools like Slack, Zoom, and Notion to stay connected, but they also recognize the importance of intentional face-to-face time. As companies adopt hybrid models, the focus is shifting toward "distributed-first" thinking. This means ensuring that every employee, regardless of their location, has equal access to information and opportunities. The future of work is about results rather than hours spent at a desk. By embracing this cultural shift, organizations can attract talent from across the globe and build more diverse and resilient teams.',
-    image_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c',
-    summary: 'Remote work has redefined the workplace as a digital space, shifting organizational focus toward trust, asynchronous communication, and results-based performance over physical presence.',
-    author_id: 'user_5',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { id: 'user_5', name: 'Sarah Jenkins', email: 'sarah@work.com', role: 'author', created_at: '' }
+/**
+ * Fetch a single post by ID, including comments and author.
+ */
+export async function getPostById(id: string): Promise<Post | null> {
+  const supabase = await getSupabase();
+  
+  if (!supabase) {
+    // Mock Mode Logic
+    const { data: posts } = await getPosts();
+    const post = posts.find(p => p.id === id);
+    return post || null;
   }
-];
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select(
+      `
+      id, title, body, image_url, summary, created_at, updated_at,
+      author:users!author_id(id, name, email),
+      comments(
+        id, comment_text, created_at,
+        author:users!user_id(id, name, email)
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) return null;
+  return data as unknown as Post;
+}
+
+// ---- Create -----------------------------------------------------
+
+/**
+ * Create a new post. Automatically generates an AI summary.
+ */
+export async function createPost(
+  formData: PostFormData,
+  authorId: string
+): Promise<Post> {
+  const supabase = await getSupabase();
+  
+  if (!supabase) {
+    // Mock Mode: Save to localStorage for demo persistence
+    const newPost: Post = {
+      id: Math.random().toString(36).substr(2, 9),
+      ...formData,
+      author_id: authorId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      author: { name: 'Author User', email: 'author@cortex.ai' }
+    };
+    
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('mock_posts');
+      const posts = stored ? JSON.parse(stored) : [];
+      localStorage.setItem('mock_posts', JSON.stringify([newPost, ...posts]));
+    }
+    
+    return newPost;
+  }
+
+  // AI Summary Generation (if not already provided by form)
+  const summary = formData.summary || await generateSummary(formData.body);
+
+  const { data, error } = await supabase
+    .from("posts")
+    .insert({
+      title: formData.title,
+      body: formData.body,
+      image_url: formData.image_url ?? null,
+      author_id: authorId,
+      summary,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Post;
+}
+
+
+// ---- Update -----------------------------------------------------
+
+/**
+ * Update an existing post.
+ * RLS policy in Supabase handles ownership / admin checks.
+ */
+export async function updatePost(
+  id: string,
+  formData: Partial<PostFormData>
+): Promise<Post> {
+  const supabase = await getSupabase();
+  if (!supabase) throw new Error("Mock Mode: Database operations are disabled.");
+
+  // Permission Check
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: post } = await supabase.from('posts').select('author_id').eq('id', id).single();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+  
+  const { canEditPost } = await import('@/lib/permissions');
+  if (!canEditPost({ ...user, role: profile?.role } as any, post as any)) {
+    throw new Error("Unauthorized: You do not have permission to edit this post.");
+  }
+
+  const { data, error } = await supabase
+    .from("posts")
+    .update({
+      ...formData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as Post;
+}
+
+// ---- Delete -----------------------------------------------------
+
+/**
+ * Delete a post by ID.
+ * RLS policy handles permissions.
+ */
+export async function deletePost(id: string): Promise<void> {
+  const supabase = await getSupabase();
+  if (!supabase) throw new Error("Mock Mode: Database operations are disabled.");
+
+  // Permission Check
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: post } = await supabase.from('posts').select('author_id').eq('id', id).single();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+  
+  const { canDeletePost } = await import('@/lib/permissions');
+  if (!canDeletePost({ ...user, role: profile?.role } as any, post as any)) {
+    throw new Error("Unauthorized: You do not have permission to delete this post.");
+  }
+
+  const { error } = await supabase.from("posts").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export const postsService = {
+  getPosts,
+  getPostById,
+  createPost,
+  updatePost,
+  deletePost,
+};
