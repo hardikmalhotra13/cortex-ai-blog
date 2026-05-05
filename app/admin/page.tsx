@@ -54,9 +54,11 @@ export default async function AdminPage() {
                   <td className="px-8 py-6">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
-                        {post.profiles?.name?.[0] || '?'}
-                      </div>
-                      <span className="text-slate-300 text-sm">{post.profiles?.name || post.profiles?.email}</span>
+  {post.title?.[0] || '?'}
+</div>
+<span className="text-slate-300 text-sm">
+  Author
+</span>
                     </div>
                   </td>
                   <td className="px-8 py-6 text-slate-500 text-sm font-medium">
