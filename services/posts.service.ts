@@ -30,7 +30,7 @@ const PAGE_SIZE = 6;
         author_id: 'mock_admin',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        author: { name: 'Admin User', email: 'admin@cortex.ai' }
+        author: { id: '1',name: 'Admin User', email: 'admin@cortex.ai' }
       },
       {
         id: '2',
@@ -41,7 +41,7 @@ const PAGE_SIZE = 6;
         author_id: 'mock_author',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        author: { name: 'Author User', email: 'author@cortex.ai' }
+        author: { id: '2', name: 'Author User', email: 'author@cortex.ai' }
       },
       {
         id: '3',
@@ -52,7 +52,7 @@ const PAGE_SIZE = 6;
         author_id: 'mock_admin',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        author: { name: 'Admin User', email: 'admin@cortex.ai' }
+        author: { id: '1', name: 'Admin User', email: 'admin@cortex.ai' }
       },
       {
         id: '4',
@@ -63,7 +63,7 @@ const PAGE_SIZE = 6;
         author_id: 'mock_author',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        author: { name: 'Author User', email: 'author@cortex.ai' }
+        author: { id: '2', name: 'Author User', email: 'author@cortex.ai' }
       }
     ];
 
@@ -164,13 +164,23 @@ export async function createPost(
   if (!supabase) {
     // Mock Mode: Save to localStorage for demo persistence
     const newPost: Post = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...formData,
-      author_id: authorId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      author: { name: 'Author User', email: 'author@cortex.ai' }
-    };
+  id: Math.random().toString(36).substr(2, 9),
+
+  title: formData.title,
+  body: formData.body,
+  image_url: formData.image_url ?? null,   // ✅ FIX
+  summary: formData.summary ?? "Auto-generated summary",
+
+  author_id: authorId,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+
+  author: {
+    id: authorId,
+    name: 'Author User',
+    email: 'author@cortex.ai'
+  }
+};
     
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('mock_posts');
@@ -268,4 +278,4 @@ export const postsService = {
   createPost,
   updatePost,
   deletePost,
-};
+};

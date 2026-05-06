@@ -5,11 +5,11 @@ import { PostCard } from '@/components/blog/PostCard';
 import { Button } from '@/components/ui';
 import { PlusSquare, BookOpen, Settings, User, Sparkles, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { Post, Profile } from '@/types';
+import { Post } from '@/types';
 
 interface DashboardProps {
   user: { id: string; email: string };
-  profile: Profile | null;
+  profile: any;
   userPosts: Post[];
 }
 

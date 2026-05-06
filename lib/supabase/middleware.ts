@@ -22,7 +22,7 @@ export const updateSession = async (request: NextRequest) => {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any[]) {
           cookiesToSet.forEach(({ name, value, options }) =>
             request.cookies.set(name, value)
           );
@@ -44,4 +44,4 @@ export const updateSession = async (request: NextRequest) => {
   await supabase.auth.getUser();
 
   return response;
-};
+};

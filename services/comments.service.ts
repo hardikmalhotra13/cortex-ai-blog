@@ -20,7 +20,7 @@ export async function getComments(postId: string): Promise<{ data: Comment[] | n
         user_id: 'mock_admin',
         comment_text: "This is an incredible perspective on the future of AI. The section on organic futurism really resonates with current trends in architecture!",
         created_at: new Date(Date.now() - 86400000).toISOString(),
-        author: { name: 'Admin User', email: 'admin@cortex.ai' }
+        author: { id: '1',name: 'Admin User', email: 'admin@cortex.ai' }
       },
       {
         id: 'c2',
@@ -28,7 +28,7 @@ export async function getComments(postId: string): Promise<{ data: Comment[] | n
         user_id: 'mock_author',
         comment_text: "I completely agree. We're entering a phase where the digital and physical realms are no longer distinct entities.",
         created_at: new Date(Date.now() - 3600000).toISOString(),
-        author: { name: 'Author User', email: 'author@cortex.ai' }
+        author: { id: '2',name: 'Author User', email: 'author@cortex.ai' }
       }
     ];
     return { data: mockComments, error: null };
@@ -84,4 +84,4 @@ export const commentsService = {
   getComments,
   addComment,
   deleteComment,
-};
+};

@@ -32,6 +32,7 @@ export interface PostFormData {
   title: string;
   body: string;
   image_url?: string;
+  summary?: string | null;
 }
 
 // ---- Comment ----------------------------------------------------
