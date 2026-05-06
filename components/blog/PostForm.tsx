@@ -56,14 +56,13 @@ export const PostForm = ({ initialData, userId }: PostFormProps) => {
 
     const postData = {
       ...formData,
-      author_id: userId,
     };
 
     try {
       if (initialData) {
         await postsService.updatePost(initialData.id, postData);
       } else {
-        await postsService.createPost(postData);
+        await postsService.createPost(postData, userId);
       }
       router.push('/posts');
       router.refresh();
